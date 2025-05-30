@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Wpf.Ui.Abstractions.Controls;
 using 이거인가보오.ViewModels.Pages;
 
@@ -7,6 +8,8 @@ namespace 이거인가보오.Views.Pages
     {
         public DashboardViewModel ViewModel { get; }
 
+        private int _lastRestCounter = 0;
+
         public DashboardPage(DashboardViewModel viewModel)
         {
             ViewModel = viewModel;
@@ -15,39 +18,43 @@ namespace 이거인가보오.Views.Pages
             InitializeComponent();
             this.Unloaded += DashboardPage_Unloaded;
             ExerciseVideo.MediaOpened += ExerciseVideo_MediaOpened;
-            ExerciseVideo.MediaEnded += ExerciseVideo_MediaEnded;            
+            ExerciseVideo.MediaEnded += ExerciseVideo_MediaEnded;
+            ViewModel.PropertyChanged += ViewModel_PropertyChanged;
         }
 
         private void ShowLoading()
         {
-            LoadingOverlay.Visibility = Visibility.Visible;
-            WebcamLoadingOverlay.Visibility = Visibility.Visible;
+            GlobalLoadingOverlay.Visibility = Visibility.Visible;
         }
         private void HideLoading()
         {
-            LoadingOverlay.Visibility = Visibility.Collapsed;
-            WebcamLoadingOverlay.Visibility = Visibility.Collapsed;
+            GlobalLoadingOverlay.Visibility = Visibility.Collapsed;
         }
 
-        private void ExerciseVideo_MediaOpened(object sender, RoutedEventArgs e)
+        private async void ExerciseVideo_MediaOpened(object sender, RoutedEventArgs e)
         {
             HideLoading();
+            reset();
+            _ = Webcam();
         }
 
         private void ExerciseVideo_MediaEnded(object sender, RoutedEventArgs e)
         {
             HideLoading();
             ExerciseVideo.Position = TimeSpan.Zero;
-            ExerciseVideo.Play();            
+            ExerciseVideo.Play();
         }
 
         private void DashboardPage_Unloaded(object sender, RoutedEventArgs e)
         {
             ExerciseVideo.Stop();
-            ExerciseVideo.Source = null;                                 
+            ExerciseVideo.Source = null;
 
-            WebcamControl.StopCamera();            
+            WebcamControl.StopCamera();
+            WebcamControl.StopPython();
             WebcamControl.Visibility = Visibility.Collapsed;
+
+            ExerciseInfoPanel.Visibility = Visibility.Collapsed;
         }
 
         private void Squat_Click(object sender, RoutedEventArgs e)
@@ -57,9 +64,6 @@ namespace 이거인가보오.Views.Pages
             string videoPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Source", "스쿼트.mp4");
             ExerciseVideo.Source = new Uri(videoPath, UriKind.Absolute);
             ExerciseVideo.Play();
-           
-            Webcam(sender, e);
-            Text(sender, e);
         }
 
         private void Pushup_Click(object sender, RoutedEventArgs e)
@@ -71,51 +75,96 @@ namespace 이거인가보오.Views.Pages
             ExerciseVideo.Source = new Uri(videoPath, UriKind.Absolute);
             ExerciseVideo.Play();
 
-
-            //웹캠 송출
-            Webcam(sender, e);
-            // 텍스트 출력
-            Text(sender, e);
         }
 
         private void Lunge_Click(object sender, RoutedEventArgs e)
         {
             ShowLoading();
             ExerciseVideo.Source = null;
-            string videoPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Source", "런지3.mp4");
+            string videoPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Source", "런지.mp4");
             ExerciseVideo.Source = new Uri(videoPath, UriKind.Absolute);
             ExerciseVideo.Play();
-           
-            Webcam(sender, e);
-            Text(sender, e);
+
         }
 
-        private void Plank_Click(object sender, RoutedEventArgs e)
+        private void Stretching_Click(object sender, RoutedEventArgs e)
         {
             ShowLoading();
             ExerciseVideo.Source = null;
-            string videoPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Source", "플랭크3.mp4");
+            string videoPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Source", "스트레칭.mp4");
             ExerciseVideo.Source = new Uri(videoPath, UriKind.Absolute);
             ExerciseVideo.Play();
-
-            Webcam(sender, e);            
-            Text(sender, e);
         }
 
         //웹캠 송출
-        private void Webcam(object sender, RoutedEventArgs e)
+        private async Task Webcam()
         {
             WebcamControl.Visibility = Visibility.Visible;
             WebcamControl.StartCamera();
             WebcamControl.StartPython();
+
+            ExerciseInfoPanel.Visibility = Visibility.Visible;
+
+            //3초 딜레이
+            for (int i = 3; i > 0; i--)
+            {
+                ExerciseCountText.Text = $"{i}초 뒤 운동 시작.";
+                AccuracyText.Text = "";
+                await Task.Delay(1000);
+            }
+            ExerciseCountText.Text = "운동 시작!";
+            await Task.Delay(1000);
+
+            ExerciseCountText.Text = $"운동 횟수: {ViewModel.Counter}";
+            AccuracyText.Text = $"정확도: {ViewModel.Accuracy}%";
         }
 
         // 텍스트 송출
-        private void Text(object sender, RoutedEventArgs e)
+        private void Text()
         {
             ExerciseInfoPanel.Visibility = Visibility.Visible;
             ExerciseCountText.Text = $"운동 횟수: {ViewModel.Counter}";
             AccuracyText.Text = $"정확도: {ViewModel.Accuracy}%";
+        }
+
+        //초기화
+        private void reset()
+        {
+            ViewModel.Counter = 0;
+            ViewModel.Accuracy = 0.0;
+        }
+
+        // 휴식 시간
+        private async void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(ViewModel.Counter))
+            {
+                // 예: 10회마다 30초 쉬기
+                if (ViewModel.Counter > 0 && ViewModel.Counter % 10 == 0 && _lastRestCounter != ViewModel.Counter)
+                {
+                    _lastRestCounter = ViewModel.Counter;
+
+                    ExerciseVideo.Visibility = Visibility.Collapsed;
+                    ExerciseVideo.Stop();
+                    WebcamControl.Visibility = Visibility.Collapsed;
+                    WebcamControl.StopCamera();
+                    WebcamControl.StopPython();
+
+                    ExerciseCountText.Text = "휴식 시간: 30초";
+                    for (int i = 30; i > 0; i--)
+                    {
+                        ExerciseCountText.Text = $"휴식 시간: {i}초";
+                        await Task.Delay(1000);
+                    }
+                    ExerciseVideo.Visibility = Visibility.Visible;
+                    ExerciseVideo.Play();
+                    WebcamControl.Visibility = Visibility.Visible;
+                    WebcamControl.StartCamera();
+                    WebcamControl.StartPython();
+
+                    Text();
+                }
+            }
         }
 
         private void Close_Click(object sender, RoutedEventArgs e)
