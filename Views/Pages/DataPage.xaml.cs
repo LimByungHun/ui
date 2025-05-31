@@ -22,10 +22,5 @@ namespace 이거인가보오.Views.Pages
 
             ViewModel.ApplyFilter();
         }
-
-        private void Button_Click(object sender, RoutedEventArgs e)
-        {
-            
-        }
     }
 }

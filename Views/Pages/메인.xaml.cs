@@ -13,7 +13,7 @@ namespace 이거인가보오.Views.Pages
         public DashboardPage(DashboardViewModel viewModel)
         {
             ViewModel = viewModel;
-            DataContext = this;
+            DataContext = ViewModel;
 
             InitializeComponent();
             this.Unloaded += DashboardPage_Unloaded;

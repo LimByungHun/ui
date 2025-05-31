@@ -22,7 +22,7 @@ namespace 이거인가보오.ViewModels.Windows
                 Content = "기록",
                 Icon = new SymbolIcon { Symbol = SymbolRegular.DataHistogram24 },
                 TargetPageType = typeof(Views.Pages.DataPage)
-            }
+            },
         };
 
         [ObservableProperty]

@@ -1,11 +1,13 @@
-﻿using System.IO;
+﻿using Emgu.CV;
+using Emgu.CV.CvEnum;
+using Emgu.CV.Structure;
+using System.Collections.ObjectModel;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
-using Emgu.CV;
-using Emgu.CV.Structure;
-using Emgu.CV.CvEnum;
+using 이거인가보오.ViewModels.Pages;
 
 namespace 이거인가보오.Views.Pages
 {
@@ -13,7 +15,36 @@ namespace 이거인가보오.Views.Pages
     /// Camera_Control.xaml에 대한 상호 작용 논리
     /// </summary>
     public partial class Camera_Control : UserControl
-    {
+    {       
+        public ObservableCollection<E_Data> ExerciseData { get; set; } = new();
+
+        public Camera_Control(List<E_Data> eData)
+        {
+            InitializeComponent();
+            foreach (var item in eData)
+            {
+                ExerciseData.Add(item);
+            }
+
+            DataContext = this;
+            ProcessLastAccuracy();
+        }
+
+        // 마지막 정확도 처리
+        private void ProcessLastAccuracy()
+        {
+            foreach (var item in ExerciseData)
+            {
+                if (item.Acc.Count > 0)
+                {
+                    float lastAcc = item.Acc[^1];
+                    // 처리 코드 (예: 콘솔 출력, 상태 체크)
+                    Console.WriteLine($"{item.Name} 마지막 정확도: {lastAcc:0.0}%");
+                }
+            }
+        }
+
+        #region 카메라 설정
         static readonly HttpClient client = new HttpClient();
         private VideoCapture? camera = null;
 
@@ -25,7 +56,7 @@ namespace 이거인가보오.Views.Pages
 
         public Camera_Control()
         {
-            InitializeComponent();            
+            InitializeComponent();
         }
 
         // 카메라 시작
@@ -124,6 +155,8 @@ namespace 이거인가보오.Views.Pages
             isCamera = false;
             camera?.Dispose();
         }
+        #endregion
+
         #endregion
     }
 }
